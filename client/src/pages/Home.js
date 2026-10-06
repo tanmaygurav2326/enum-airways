@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { useCurrency } from '../context/CurrencyContext';
 import {
@@ -32,26 +32,39 @@ const POPULAR_ROUTES = [
 
 const Home = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { formatPrice } = useCurrency();
+
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Extract initial search values from URL params or location state if returning from search
+  const paramFrom = searchParams.get('from') || location.state?.from;
+  const paramTo = searchParams.get('to') || location.state?.to;
+  const paramDate = searchParams.get('date') || location.state?.date;
+  const paramClass = searchParams.get('class') || location.state?.cabinClass;
+
+  const paramAdt = parseInt(searchParams.get('adt') || location.state?.passengers?.adt || '1', 10);
+  const paramChd = parseInt(searchParams.get('chd') || location.state?.passengers?.chd || '0', 10);
+  const paramInf = parseInt(searchParams.get('inf') || location.state?.passengers?.inf || '0', 10);
+  const paramUm = parseInt(searchParams.get('um') || location.state?.passengers?.um || '0', 10);
 
   const [activeTab, setActiveTab] = useState('book'); // 'book' | 'pnr' | 'baggage'
   const [tripType, setTripType] = useState('oneway'); // 'oneway' | 'roundtrip'
   const [airports, setAirports] = useState([]);
 
   // Search parameters
-  const [fromAirport, setFromAirport] = useState('BOM');
-  const [toAirport, setToAirport] = useState('DEL');
+  const [fromAirport, setFromAirport] = useState(paramFrom || 'BOM');
+  const [toAirport, setToAirport] = useState(paramTo || 'DEL');
 
-  // Current date (not hardcoded)
-  const todayStr = new Date().toISOString().split('T')[0];
-  const [departureDate, setDepartureDate] = useState(todayStr);
+  const [departureDate, setDepartureDate] = useState(paramDate || todayStr);
   const [returnDate, setReturnDate] = useState('');
-  const [cabinClass, setCabinClass] = useState('Economy');
+  const [cabinClass, setCabinClass] = useState(paramClass || 'Economy');
   const [passengers, setPassengers] = useState({
-    adt: 1,
-    chd: 0,
-    inf: 0,
-    um: 0
+    adt: isNaN(paramAdt) ? 1 : paramAdt,
+    chd: isNaN(paramChd) ? 0 : paramChd,
+    inf: isNaN(paramInf) ? 0 : paramInf,
+    um: isNaN(paramUm) ? 0 : paramUm
   });
   const [searchError, setSearchError] = useState('');
 
@@ -68,15 +81,17 @@ const Home = () => {
         const res = await api.get('/airports');
         if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
           setAirports(res.data);
-          // Set sensible defaults if available
-          const hasBom = res.data.some(a => a.AIRPORTCODE === 'BOM');
-          const hasDel = res.data.some(a => a.AIRPORTCODE === 'DEL');
-          if (hasBom && hasDel) {
-            setFromAirport('BOM');
-            setToAirport('DEL');
-          } else {
-            setFromAirport(res.data[0].AIRPORTCODE);
-            setToAirport(res.data[1]?.AIRPORTCODE || res.data[0].AIRPORTCODE);
+          // Set default airports only if no paramFrom and paramTo were provided
+          if (!paramFrom && !paramTo) {
+            const hasBom = res.data.some(a => a.AIRPORTCODE === 'BOM');
+            const hasDel = res.data.some(a => a.AIRPORTCODE === 'DEL');
+            if (hasBom && hasDel) {
+              setFromAirport('BOM');
+              setToAirport('DEL');
+            } else {
+              setFromAirport(res.data[0].AIRPORTCODE);
+              setToAirport(res.data[1]?.AIRPORTCODE || res.data[0].AIRPORTCODE);
+            }
           }
         }
       } catch (err) {
@@ -84,7 +99,7 @@ const Home = () => {
       }
     };
     fetchAirports();
-  }, []);
+  }, [paramFrom, paramTo]);
 
   const handleSwapAirports = () => {
     setFromAirport(toAirport);
@@ -101,6 +116,10 @@ const Home = () => {
     }
     const totalSeated = (passengers.adt || 0) + (passengers.chd || 0) + (passengers.um || 0);
     const totalPax = totalSeated + (passengers.inf || 0);
+    if (totalPax === 0) {
+      setSearchError('At least 1 passenger is required to search flights.');
+      return;
+    }
     const roundtripParam = tripType === 'roundtrip' && returnDate ? `&returnDate=${returnDate}` : '';
     navigate(`/flights?from=${fromAirport}&to=${toAirport}&date=${departureDate}&class=${cabinClass}&passengers=${totalSeated || 1}&totalPax=${totalPax}&adt=${passengers.adt}&chd=${passengers.chd}&inf=${passengers.inf}&um=${passengers.um}&trip=${tripType}${roundtripParam}`);
   };
@@ -130,9 +149,40 @@ const Home = () => {
     navigate(`/flights?from=${route.from}&to=${route.to}&date=${departureDate}&class=Economy&passengers=1&totalPax=1&adt=1&chd=0&inf=0&um=0&trip=oneway`);
   };
 
-  // Group airports: Domestic Indian Hubs vs International
-  const domesticAirports = airports.filter(a => a.COUNTRY === 'India' || !['DXB', 'SIN', 'LHR', 'BKK'].includes(a.AIRPORTCODE));
-  const internationalAirports = airports.filter(a => ['DXB', 'SIN', 'LHR', 'BKK'].includes(a.AIRPORTCODE));
+  // Static fallback list to ensure dropdowns never break even if network or API is delayed
+  const staticAirportList = [
+    { AIRPORTCODE: 'BOM', CITY: 'Mumbai', COUNTRY: 'India' },
+    { AIRPORTCODE: 'DEL', CITY: 'Delhi', COUNTRY: 'India' },
+    { AIRPORTCODE: 'BLR', CITY: 'Bengaluru', COUNTRY: 'India' },
+    { AIRPORTCODE: 'PNQ', CITY: 'Pune', COUNTRY: 'India' },
+    { AIRPORTCODE: 'HYD', CITY: 'Hyderabad', COUNTRY: 'India' },
+    { AIRPORTCODE: 'MAA', CITY: 'Chennai', COUNTRY: 'India' },
+    { AIRPORTCODE: 'CCU', CITY: 'Kolkata', COUNTRY: 'India' },
+    { AIRPORTCODE: 'GOI', CITY: 'Goa', COUNTRY: 'India' },
+    { AIRPORTCODE: 'COK', CITY: 'Kochi', COUNTRY: 'India' },
+    { AIRPORTCODE: 'AMD', CITY: 'Ahmedabad', COUNTRY: 'India' },
+    { AIRPORTCODE: 'JAI', CITY: 'Jaipur', COUNTRY: 'India' },
+    { AIRPORTCODE: 'DXB', CITY: 'Dubai', COUNTRY: 'UAE' },
+    { AIRPORTCODE: 'SIN', CITY: 'Singapore', COUNTRY: 'Singapore' },
+    { AIRPORTCODE: 'LHR', CITY: 'London', COUNTRY: 'UK' },
+    { AIRPORTCODE: 'BKK', CITY: 'Bangkok', COUNTRY: 'Thailand' },
+  ];
+
+  const rawAirports = airports.length > 0 ? airports : staticAirportList;
+
+  const ensureAirportCode = (list, code) => {
+    if (!code) return list;
+    const upper = code.toUpperCase();
+    if (!list.some(a => (a.AIRPORTCODE || a.AirportCode) === upper)) {
+      return [...list, { AIRPORTCODE: upper, CITY: upper, COUNTRY: 'India' }];
+    }
+    return list;
+  };
+
+  const fullAirports = ensureAirportCode(ensureAirportCode(rawAirports, fromAirport), toAirport);
+
+  const domesticAirports = fullAirports.filter(a => (a.COUNTRY || a.Country || 'India') === 'India' && !['DXB', 'SIN', 'LHR', 'BKK'].includes(a.AIRPORTCODE));
+  const internationalAirports = fullAirports.filter(a => (a.COUNTRY || a.Country) !== 'India' || ['DXB', 'SIN', 'LHR', 'BKK'].includes(a.AIRPORTCODE));
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#172B4D] flex flex-col font-sans">
@@ -148,19 +198,8 @@ const Home = () => {
         <div className="max-w-6xl mx-auto text-center relative z-10 space-y-4 mb-8">
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-white/15 backdrop-blur-md text-white border border-white/20 shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Welcome to Enum Airways — India's Premier Aviation Network</span>
+            <span>Welcome to Enum Airways</span>
           </div>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight text-white max-w-4xl mx-auto font-display">
-            Connecting India's Hubs with <br className="hidden sm:inline" />
-            <span className="text-[#DEEBFF]">
-              Punctuality & Precision
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto font-normal">
-            Direct flights connecting Mumbai, Delhi, Bengaluru, Pune, Hyderabad, and Chennai with reliable scheduling and dedicated service.
-          </p>
         </div>
 
         {/* Tabbed Booking & Services Widget */}

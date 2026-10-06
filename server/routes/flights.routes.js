@@ -5,6 +5,8 @@
 const express = require('express');
 const router = express.Router();
 const flightController = require('../controllers/flightController');
+const authMiddleware = require('../middleware/auth');
+const authorize = require('../middleware/authorize');
 
 /**
  * GET /api/flights
@@ -29,5 +31,16 @@ router.get('/:flightId', flightController.getFlightDetails);
  * Get available seats for a flight
  */
 router.get('/:flightId/seats', flightController.getFlightSeats);
+
+/**
+ * PATCH /api/flights/:flightId/status
+ * Update flight operational status (Admin / Staff)
+ */
+router.patch(
+  '/:flightId/status',
+  authMiddleware,
+  authorize('Admin', 'Staff'),
+  flightController.updateFlightStatus
+);
 
 module.exports = router;

@@ -29,7 +29,13 @@ const flightService = {
           AP2.AirportName as ArrivalAirportName,
           AP1.City as DepartureCity,
           AP2.City as ArrivalCity,
-          (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID AND Status = 'AVAILABLE') as AvailableSeats
+          CASE
+            WHEN (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID) > 0 THEN
+              (SELECT COUNT(*) FROM AircraftSeats S WHERE S.AircraftID = F.AircraftID AND S.Status = 'AVAILABLE'
+                 AND NOT EXISTS (SELECT 1 FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND T.SeatNumber = S.SeatNumber AND B.Status != 'Cancelled'))
+            ELSE
+              (A.TotalSeats - (SELECT COUNT(*) FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND B.Status != 'Cancelled'))
+          END AS AvailableSeats
         FROM Flights F
         JOIN Aircraft A ON F.AircraftID = A.AircraftID
         JOIN Airports AP1 ON F.DepartureAirport = AP1.AirportCode
@@ -122,7 +128,13 @@ const flightService = {
           AP2.AirportName as ArrivalAirportName,
           AP1.City as DepartureCity,
           AP2.City as ArrivalCity,
-          (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID AND Status = 'AVAILABLE') as AvailableSeats
+          CASE
+            WHEN (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID) > 0 THEN
+              (SELECT COUNT(*) FROM AircraftSeats S WHERE S.AircraftID = F.AircraftID AND S.Status = 'AVAILABLE'
+                 AND NOT EXISTS (SELECT 1 FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND T.SeatNumber = S.SeatNumber AND B.Status != 'Cancelled'))
+            ELSE
+              (A.TotalSeats - (SELECT COUNT(*) FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND B.Status != 'Cancelled'))
+          END AS AvailableSeats
         FROM Flights F
         JOIN Aircraft A ON F.AircraftID = A.AircraftID
         JOIN Airports AP1 ON F.DepartureAirport = AP1.AirportCode
@@ -276,6 +288,57 @@ const flightService = {
       throw {
         status: 500,
         message: 'Failed to retrieve seats',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
+  },
+
+  /**
+   * Update flight operational status
+   * @param {number} flightId
+   * @param {string} status
+   * @returns {Promise<object>} - Updated flight object
+   */
+  updateFlightStatus: async (flightId, status) => {
+    try {
+      const validStatuses = ['Scheduled', 'Delayed', 'Departed', 'Arrived', 'Cancelled'];
+      if (!validStatuses.includes(status)) {
+        throw {
+          status: 400,
+          message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+          code: ERROR_CODES.INVALID_INPUT
+        };
+      }
+
+      const existing = await executeQuery(
+        `SELECT FlightID, FlightNumber, Status FROM Flights WHERE FlightID = :flightId`,
+        { flightId }
+      );
+
+      if (!existing || existing.length === 0) {
+        throw {
+          status: 404,
+          message: 'Flight not found',
+          code: ERROR_CODES.NOT_FOUND
+        };
+      }
+
+      await executeQuery(
+        `UPDATE Flights SET Status = :status WHERE FlightID = :flightId`,
+        { status, flightId }
+      );
+
+      return {
+        flightId,
+        flightNumber: existing[0].FLIGHTNUMBER,
+        status
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      console.error('Update flight status error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to update flight status',
         code: ERROR_CODES.DATABASE_ERROR
       };
     }

@@ -13,4 +13,10 @@ router.get('/flights', adminController.getFlightStats);
 router.get('/bookings', adminController.getBookingStats);
 router.get('/users', adminController.getUserStats);
 
+// Staff Registry & Crew Management
+router.get('/staff', adminController.getStaffRegistry);
+router.post('/staff', adminController.createStaffId);
+router.delete('/staff/:staffId', adminController.deleteStaffId);
+router.get('/staff-users', adminController.getStaffUsers);
+
 module.exports = router;

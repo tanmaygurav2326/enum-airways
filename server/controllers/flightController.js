@@ -170,6 +170,43 @@ const flightController = {
         next({ status: 500, message: 'Failed to retrieve seats', code: 'SERVER_ERROR' });
       }
     }
+  },
+
+  /**
+   * PATCH /api/flights/:flightId/status
+   * Update flight operational status (Admin / Staff)
+   */
+  updateFlightStatus: async (req, res, next) => {
+    try {
+      const { flightId } = req.params;
+      const { status } = req.body;
+
+      if (!flightId || isNaN(flightId)) {
+        const response = ApiResponse.validationError('Invalid flightId');
+        return res.status(response.statusCode).json(response.body);
+      }
+
+      if (!status) {
+        const response = ApiResponse.validationError('Status is required');
+        return res.status(response.statusCode).json(response.body);
+      }
+
+      const result = await flightService.updateFlightStatus(parseInt(flightId), status);
+
+      const response = ApiResponse.success(
+        200,
+        result,
+        `Flight status updated to ${status}`
+      );
+      res.status(response.statusCode).json(response.body);
+    } catch (error) {
+      if (error.status) {
+        next(error);
+      } else {
+        console.error('Update flight status error:', error);
+        next({ status: 500, message: error.message || 'Failed to update flight status', code: 'SERVER_ERROR' });
+      }
+    }
   }
 };
 

@@ -124,11 +124,11 @@ const FlightCard = ({
             <div className="text-2xl sm:text-3xl font-bold text-[#091E42] tracking-tight">
               {formatTime(flight.DEPARTURETIME)}
             </div>
-            <div className="text-sm font-semibold text-[#0052CC] mt-0.5">
-              {flight.DEPARTUREAIRPORT || flight.DEPARTURECITY || 'BOM'}
+            <div className="text-base font-bold text-[#0052CC] mt-0.5">
+              {flight.DEPARTURECITY ? `${flight.DEPARTURECITY} (${flight.DEPARTUREAIRPORT || 'BOM'})` : (flight.DEPARTUREAIRPORT || 'BOM')}
             </div>
             <div className="text-xs text-slate-500 truncate">
-              {flight.DEPARTURECITY ? `${flight.DEPARTURECITY}` : 'Departure Hub'}
+              {flight.DEPARTUREAIRPORTNAME || 'Departure Hub'}
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
               {formatDate(flight.DEPARTURETIME)}
@@ -161,11 +161,11 @@ const FlightCard = ({
             <div className="text-2xl sm:text-3xl font-bold text-[#091E42] tracking-tight">
               {formatTime(flight.ARRIVALTIME)}
             </div>
-            <div className="text-sm font-semibold text-[#0052CC] mt-0.5">
-              {flight.ARRIVALAIRPORT || flight.ARRIVALCITY || 'DEL'}
+            <div className="text-base font-bold text-[#0052CC] mt-0.5">
+              {flight.ARRIVALCITY ? `${flight.ARRIVALCITY} (${flight.ARRIVALAIRPORT || 'DEL'})` : (flight.ARRIVALAIRPORT || 'DEL')}
             </div>
             <div className="text-xs text-slate-500 truncate">
-              {flight.ARRIVALCITY ? `${flight.ARRIVALCITY}` : 'Arrival Hub'}
+              {flight.ARRIVALAIRPORTNAME || 'Arrival Hub'}
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
               {formatDate(flight.ARRIVALTIME)}

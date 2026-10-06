@@ -150,7 +150,7 @@ const Footer = () => {
           <p>© {new Date().getFullYear()} Enum Airways. All rights reserved.</p>
           <div className="flex space-x-6 text-xs text-slate-400">
             <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
-            <Link to="/terms" className="hover:text-white transition">Terms of Carriage</Link>
+            <Link to="/terms-and-conditions" className="hover:text-white transition">Terms & Conditions</Link>
             <Link to="/baggage-rules" className="hover:text-white transition">Baggage Rules</Link>
             <Link to="/feedback" className="hover:text-white transition">Grievance Officer</Link>
           </div>

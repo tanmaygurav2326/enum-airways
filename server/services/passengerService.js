@@ -167,6 +167,93 @@ const passengerService = {
         code: ERROR_CODES.DATABASE_ERROR
       };
     }
+  },
+
+  /**
+   * Get passenger profile by UserID
+   */
+  getPassengerByUserId: async (userId) => {
+    try {
+      const passengers = await executeQuery(
+        `SELECT P.PassengerID, P.UserID, P.PassportNumber, P.Nationality, P.PhoneNumber, P.FrequentFlyerNumber,
+                U.FirstName, U.LastName, U.Email
+         FROM Passengers P
+         JOIN Users U ON P.UserID = U.UserID
+         WHERE P.UserID = :userId`,
+        { userId }
+      );
+
+      if (!passengers || passengers.length === 0) {
+        return null;
+      }
+
+      const p = passengers[0];
+
+      return {
+        passengerId: p.PASSENGERID,
+        userId: p.USERID,
+        firstName: p.FIRSTNAME,
+        lastName: p.LASTNAME,
+        email: p.EMAIL,
+        passportNumber: p.PASSPORTNUMBER,
+        nationality: p.NATIONALITY,
+        phoneNumber: p.PHONENUMBER,
+        frequentFlyerNumber: p.FREQUENTFLYERNUMBER
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      console.error('Get passenger by user ID error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to retrieve passenger profile',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
+  },
+
+  /**
+   * Update passenger profile by UserID
+   */
+  updatePassengerByUserId: async (userId, updateData = {}) => {
+    try {
+      const existing = await passengerService.getPassengerByUserId(userId);
+
+      if (!existing) {
+        // Create if does not exist
+        return await passengerService.createPassenger({
+          userId,
+          passportNumber: updateData.passportNumber || 'TBD',
+          nationality: updateData.nationality || 'India',
+          phoneNumber: updateData.phoneNumber,
+          frequentFlyerNumber: updateData.frequentFlyerNumber
+        });
+      }
+
+      const passportNumber = updateData.passportNumber ?? existing.passportNumber;
+      const nationality = updateData.nationality ?? existing.nationality;
+      const phoneNumber = updateData.phoneNumber ?? existing.phoneNumber;
+      const frequentFlyerNumber = updateData.frequentFlyerNumber ?? existing.frequentFlyerNumber;
+
+      await executeQuery(
+        `UPDATE Passengers
+         SET PassportNumber = :passportNumber,
+             Nationality = :nationality,
+             PhoneNumber = :phoneNumber,
+             FrequentFlyerNumber = :frequentFlyerNumber
+         WHERE UserID = :userId`,
+        { passportNumber, nationality, phoneNumber, frequentFlyerNumber, userId }
+      );
+
+      return await passengerService.getPassengerByUserId(userId);
+    } catch (error) {
+      if (error.status) throw error;
+      console.error('Update passenger by user ID error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to update passenger profile',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
   }
 };
 

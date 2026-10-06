@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Lock,
   Plane,
-  Smartphone
+  Smartphone,
+  ArrowLeft
 } from 'lucide-react';
 
 const CLASS_MULTIPLIERS = {
@@ -216,7 +217,24 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] text-[#172B4D] py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+
+        {/* Step Indicator & Go to Previous Page Bar */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center space-x-2 text-xs font-bold text-[#0052CC] hover:text-[#003A8C] bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition hover:bg-slate-50 cursor-pointer active:scale-95"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Go to previous page</span>
+          </button>
+
+          <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#0052CC]"></span>
+            <span>Step 3 of 4: Passenger Details & Checkout</span>
+          </div>
+        </div>
 
         {/* Step Indicator Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">

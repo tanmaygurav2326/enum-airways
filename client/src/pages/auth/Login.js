@@ -6,7 +6,8 @@ import {
   AlertCircle,
   KeyRound,
   Mail,
-  ShieldCheck
+  ShieldCheck,
+  Info
 } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import logoImg from '../../assets/logo.jpg';
@@ -21,7 +22,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const redirectUrl = new URLSearchParams(location.search).get('redirect') || '/';
+  const searchParams = new URLSearchParams(location.search);
+  const redirectUrl = searchParams.get('redirect') || location.state?.from?.pathname || '/';
+  const reasonParam = searchParams.get('reason') || searchParams.get('message') || location.state?.message;
+
+  let noticeMessage = reasonParam;
+  if (!noticeMessage && (redirectUrl.includes('/booking/checkout') || redirectUrl.includes('/checkout'))) {
+    noticeMessage = 'Please sign in or create an account to complete your flight booking and passenger details.';
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,6 +67,17 @@ const Login = () => {
             Access your bookings, select seating, and manage your travel itinerary.
           </p>
         </div>
+
+        {/* Redirection Notice Banner */}
+        {noticeMessage && (
+          <div className="bg-[#DEEBFF] border border-[#B3D4FF] text-[#0052CC] p-4 rounded-2xl flex items-start space-x-3 text-xs shadow-sm animate-fade-in-up">
+            <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-[#0052CC]" />
+            <div>
+              <h4 className="font-bold text-[#091E42] text-sm">Sign In Required</h4>
+              <p className="mt-0.5 text-slate-600 leading-relaxed">{noticeMessage}</p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center space-x-3 text-xs animate-fade-in-up">
@@ -123,7 +142,10 @@ const Login = () => {
 
         <p className="text-center text-xs text-slate-500">
           New to Enum Airways?{' '}
-          <Link to="/register" className="text-[#0052CC] font-bold hover:underline">
+          <Link
+            to={`/register${redirectUrl !== '/' ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+            className="text-[#0052CC] font-bold hover:underline"
+          >
             Register for Free
           </Link>
         </p>

@@ -244,6 +244,182 @@ const adminService = {
         code: ERROR_CODES.DATABASE_ERROR
       };
     }
+  },
+
+  /**
+   * Get all Staff IDs with their assignment status
+   * @returns {Promise<array>}
+   */
+  getStaffRegistry: async () => {
+    try {
+      const staffList = await executeQuery(
+        `SELECT sr.StaffID, sr.IsAssigned,
+                u.UserID, u.FirstName, u.LastName, u.Email
+         FROM StaffRegistry sr
+         LEFT JOIN Users u ON sr.AssignedUserID = u.UserID
+         ORDER BY sr.StaffID ASC`
+      );
+
+      return (staffList || []).map(s => ({
+        staffId: s.STAFFID,
+        isAssigned: s.ISASSIGNED === 1,
+        assignedUser: s.USERID ? {
+          userId: s.USERID,
+          firstName: s.FIRSTNAME,
+          lastName: s.LASTNAME,
+          email: s.EMAIL
+        } : null
+      }));
+    } catch (error) {
+      console.error('Get staff registry error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to retrieve staff registry',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
+  },
+
+  /**
+   * Create a new unassigned Staff ID
+   * @param {string} staffId
+   * @returns {Promise<object>}
+   */
+  createStaffId: async (staffId) => {
+    try {
+      if (!staffId || typeof staffId !== 'string') {
+        throw {
+          status: 400,
+          message: 'Valid Staff ID is required',
+          code: ERROR_CODES.INVALID_INPUT
+        };
+      }
+
+      const cleanId = staffId.trim().toUpperCase();
+      if (!cleanId.startsWith('EA-STF') || cleanId.length > 20) {
+        throw {
+          status: 400,
+          message: 'Staff ID must start with EA-STF and be under 20 characters (e.g., EA-STF021)',
+          code: ERROR_CODES.INVALID_INPUT
+        };
+      }
+
+      // Check if already exists
+      const existing = await executeQuery(
+        `SELECT StaffID FROM StaffRegistry WHERE StaffID = :cleanId`,
+        { cleanId }
+      );
+
+      if (existing && existing.length > 0) {
+        throw {
+          status: 409,
+          message: `Staff ID ${cleanId} already exists`,
+          code: ERROR_CODES.DUPLICATE_ENTRY
+        };
+      }
+
+      await executeQuery(
+        `INSERT INTO StaffRegistry (StaffID, IsAssigned) VALUES (:cleanId, 0)`,
+        { cleanId }
+      );
+
+      return {
+        staffId: cleanId,
+        isAssigned: false
+      };
+    } catch (error) {
+      if (error.status) throw error;
+      console.error('Create staff ID error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to create Staff ID',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
+  },
+
+  /**
+   * Delete an unassigned Staff ID
+   * @param {string} staffId
+   * @returns {Promise<object>}
+   */
+  deleteStaffId: async (staffId) => {
+    try {
+      if (!staffId) {
+        throw {
+          status: 400,
+          message: 'Staff ID is required',
+          code: ERROR_CODES.INVALID_INPUT
+        };
+      }
+
+      const cleanId = staffId.trim().toUpperCase();
+      const existing = await executeQuery(
+        `SELECT StaffID, IsAssigned FROM StaffRegistry WHERE StaffID = :cleanId`,
+        { cleanId }
+      );
+
+      if (!existing || existing.length === 0) {
+        throw {
+          status: 404,
+          message: `Staff ID ${cleanId} not found`,
+          code: ERROR_CODES.NOT_FOUND
+        };
+      }
+
+      if (existing[0].ISASSIGNED === 1) {
+        throw {
+          status: 400,
+          message: `Cannot delete Staff ID ${cleanId} because it is already assigned to a registered user`,
+          code: ERROR_CODES.INVALID_OPERATION
+        };
+      }
+
+      await executeQuery(
+        `DELETE FROM StaffRegistry WHERE StaffID = :cleanId AND IsAssigned = 0`,
+        { cleanId }
+      );
+
+      return { success: true, message: `Staff ID ${cleanId} deleted successfully` };
+    } catch (error) {
+      if (error.status) throw error;
+      console.error('Delete staff ID error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to delete Staff ID',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
+  },
+
+  /**
+   * List all users with Staff or Admin role (for crew assignment)
+   * @returns {Promise<array>}
+   */
+  getStaffUsers: async () => {
+    try {
+      const users = await executeQuery(
+        `SELECT UserID, FirstName, LastName, Email, Role
+         FROM Users
+         WHERE Role IN ('Staff', 'Admin')
+         ORDER BY LastName ASC, FirstName ASC`
+      );
+
+      return (users || []).map(u => ({
+        userId: u.USERID,
+        firstName: u.FIRSTNAME,
+        lastName: u.LASTNAME,
+        email: u.EMAIL,
+        role: u.ROLE
+      }));
+    } catch (error) {
+      console.error('Get staff users error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to retrieve staff users',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
   }
 };
 

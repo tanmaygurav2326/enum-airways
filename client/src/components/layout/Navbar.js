@@ -171,7 +171,7 @@ const Navbar = () => {
               <Link
                 to="/admin/dashboard"
                 className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
-                  isActive('/admin/dashboard')
+                  location.pathname.startsWith('/admin')
                     ? 'bg-amber-100 text-amber-900 border border-amber-300'
                     : 'text-amber-800 hover:bg-amber-50'
                 }`}

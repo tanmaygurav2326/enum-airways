@@ -11,7 +11,9 @@ import {
   Calendar,
   AlertCircle,
   ArrowUpDown,
-  RotateCcw
+  RotateCcw,
+  Search,
+  ArrowLeft
 } from 'lucide-react';
 
 const CLASS_MULTIPLIERS = {
@@ -19,6 +21,32 @@ const CLASS_MULTIPLIERS = {
   'Premium Economy': 1.4,
   'Business': 2.2,
   'First': 3.5
+};
+
+// Known city mappings fallback
+const AIRPORT_CITIES = {
+  BOM: 'Mumbai',
+  DEL: 'Delhi',
+  BLR: 'Bengaluru',
+  PNQ: 'Pune',
+  HYD: 'Hyderabad',
+  MAA: 'Chennai',
+  CCU: 'Kolkata',
+  GOI: 'Goa',
+  COK: 'Kochi',
+  AMD: 'Ahmedabad',
+  JAI: 'Jaipur',
+  NAG: 'Nagpur',
+  JLG: 'Jalgaon',
+  KLH: 'Kolhapur',
+  IXC: 'Chandigarh',
+  IXB: 'Bagdogra',
+  PAT: 'Patna',
+  BBI: 'Bhubaneswar',
+  DXB: 'Dubai',
+  SIN: 'Singapore',
+  LHR: 'London',
+  BKK: 'Bangkok'
 };
 
 const FlightResults = () => {
@@ -34,28 +62,88 @@ const FlightResults = () => {
   const passengers = parseInt(searchParams.get('passengers') || searchParams.get('totalPax') || '1');
 
   const [flights, setFlights] = useState([]);
+  const [airports, setAirports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Date availability & route fallback state
+  const [noFlightOnDate, setNoFlightOnDate] = useState(false);
+  const [isShowingRouteFallback, setIsShowingRouteFallback] = useState(false);
+  const [loadingRouteFallback, setLoadingRouteFallback] = useState(false);
+
   // Filters & Sorting state
   const [selectedClass, setSelectedClass] = useState(initialClass);
-  const [maxPrice, setMaxPrice] = useState(50000);
+  const [maxPrice, setMaxPrice] = useState(100000);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [timeOfDayFilter, setTimeOfDayFilter] = useState('ALL'); // 'ALL' | 'morning' | 'afternoon' | 'evening'
-  const [sortBy, setSortBy] = useState('price_asc'); // 'price_asc' | 'price_desc' | 'time_asc' | 'time_desc' | 'duration_asc' | 'duration_desc'
+  const [sortBy, setSortBy] = useState('price_asc');
+
+  // Load airports list for city lookup
+  useEffect(() => {
+    const fetchAirports = async () => {
+      try {
+        const res = await api.get('/airports');
+        const data = res?.data || res || [];
+        if (Array.isArray(data)) {
+          setAirports(data);
+        }
+      } catch (err) {
+        // Fall back to built-in dictionary
+      }
+    };
+    fetchAirports();
+  }, []);
+
+  const getCityName = (code) => {
+    if (!code) return '';
+    const upper = code.toUpperCase();
+    const found = airports.find(a => (a.AIRPORTCODE || a.AirportCode) === upper);
+    if (found) return found.CITY || found.City;
+    return AIRPORT_CITIES[upper] || '';
+  };
+
+  const fromCityName = getCityName(from);
+  const toCityName = getCityName(to);
+
+  const fromLabel = fromCityName ? `${fromCityName} (${from.toUpperCase()})` : from.toUpperCase();
+  const toLabel = toCityName ? `${toCityName} (${to.toUpperCase()})` : to.toUpperCase();
+
+  const adt = searchParams.get('adt') || '1';
+  const chd = searchParams.get('chd') || '0';
+  const inf = searchParams.get('inf') || '0';
+  const um = searchParams.get('um') || '0';
+
+  const handleReturnToSearch = () => {
+    const returnPath = `/?from=${from}&to=${to}&date=${date}&class=${encodeURIComponent(selectedClass)}&passengers=${passengers}&totalPax=${passengers}&adt=${adt}&chd=${chd}&inf=${inf}&um=${um}`;
+    navigate(returnPath, {
+      state: {
+        from,
+        to,
+        date,
+        cabinClass: selectedClass,
+        passengers: {
+          adt: parseInt(adt, 10) || 1,
+          chd: parseInt(chd, 10) || 0,
+          inf: parseInt(inf, 10) || 0,
+          um: parseInt(um, 10) || 0
+        }
+      }
+    });
+  };
 
   useEffect(() => {
     const fetchFlights = async () => {
       setLoading(true);
       setError(null);
+      setNoFlightOnDate(false);
+      setIsShowingRouteFallback(false);
+
       try {
         let res;
         try {
-          // Attempt exact search
           res = await api.get(`/flights/search?from=${from}&to=${to}&date=${date}`);
         } catch (searchErr) {
-          // If specific route date search fails or is empty, fetch all available flights
-          res = await api.get('/flights');
+          res = { data: [] };
         }
 
         const extractList = (response) => {
@@ -67,20 +155,14 @@ const FlightResults = () => {
           return [];
         };
 
-        let list = extractList(res);
+        const list = extractList(res);
 
-        // If search returned empty list, also fall back to all flights matching route or general
         if (list.length === 0) {
-          const allRes = await api.get('/flights');
-          const allList = extractList(allRes);
-          // Filter by route if possible, else show all
-          const routeMatches = allList.filter(f =>
-            (f.DEPARTUREAIRPORT === from || f.DEPARTURECITY === from) &&
-            (f.ARRIVALAIRPORT === to || f.ARRIVALCITY === to)
-          );
-          setFlights(routeMatches.length > 0 ? routeMatches : allList);
+          setFlights([]);
+          setNoFlightOnDate(true);
         } else {
           setFlights(list);
+          setNoFlightOnDate(false);
         }
       } catch (err) {
         setError(err.message || 'Failed to search flights');
@@ -91,6 +173,47 @@ const FlightResults = () => {
 
     fetchFlights();
   }, [from, to, date]);
+
+  // Handler to fetch all upcoming flights specifically for this route (from today)
+  const handleShowAllRouteFlights = async () => {
+    setLoadingRouteFallback(true);
+    setError(null);
+    try {
+      const allRes = await api.get('/flights');
+      const extractList = (response) => {
+        if (!response) return [];
+        const payload = response.data !== undefined ? response.data : response;
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.data)) return payload.data;
+        if (Array.isArray(response)) return response;
+        return [];
+      };
+
+      const allList = extractList(allRes);
+
+      // Filter by route (from -> to) and departure date >= today
+      const routeMatches = allList.filter((f) => {
+        const matchesRoute =
+          (f.DEPARTUREAIRPORT === from || f.DEPARTURECITY === from) &&
+          (f.ARRIVALAIRPORT === to || f.ARRIVALCITY === to);
+        if (!matchesRoute) return false;
+
+        if (f.DEPARTURETIME) {
+          const flightDateStr = String(f.DEPARTURETIME).split('T')[0].split(' ')[0];
+          return flightDateStr >= todayStr;
+        }
+        return true;
+      });
+
+      setFlights(routeMatches);
+      setIsShowingRouteFallback(true);
+      setNoFlightOnDate(false);
+    } catch (err) {
+      setError('Failed to retrieve route flights.');
+    } finally {
+      setLoadingRouteFallback(false);
+    }
+  };
 
   const calculateFare = (basePrice, cClass) => {
     const multiplier = CLASS_MULTIPLIERS[cClass] || 1.0;
@@ -123,7 +246,6 @@ const FlightResults = () => {
     const matchesPrice = fare <= maxPrice;
     const matchesStatus = statusFilter === 'ALL' || f.STATUS === statusFilter;
 
-    // Time of day check
     let matchesTime = true;
     if (timeOfDayFilter !== 'ALL' && f.DEPARTURETIME) {
       const depHour = new Date(String(f.DEPARTURETIME).replace(' ', 'T')).getHours();
@@ -135,7 +257,7 @@ const FlightResults = () => {
     return matchesPrice && matchesStatus && matchesTime;
   });
 
-  // Sort logic supporting all directions
+  // Sort logic
   const sortedFlights = [...filteredFlights].sort((a, b) => {
     const fareA = calculateFare(a.BASEPRICE, selectedClass);
     const fareB = calculateFare(b.BASEPRICE, selectedClass);
@@ -162,15 +284,35 @@ const FlightResults = () => {
   };
 
   const handleResetFilters = () => {
-    setMaxPrice(50000);
+    setMaxPrice(100000);
     setStatusFilter('ALL');
     setTimeOfDayFilter('ALL');
     setSortBy('price_asc');
+    if (noFlightOnDate || (flights.length === 0 && !isShowingRouteFallback)) {
+      handleShowAllRouteFlights();
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] text-[#172B4D] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Step Indicator & Go to Previous Page Bar */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleReturnToSearch}
+            className="inline-flex items-center space-x-2 text-xs font-bold text-[#0052CC] hover:text-[#003A8C] bg-white border border-slate-200 px-3.5 py-2 rounded-xl shadow-xs transition hover:bg-slate-50 cursor-pointer active:scale-95"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Go to previous page</span>
+          </button>
+
+          <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#0052CC]"></span>
+            <span>Step 1 of 4: Select Flight</span>
+          </div>
+        </div>
 
         {/* Route Summary & Modification Header */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -179,10 +321,10 @@ const FlightResults = () => {
               <Plane className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center space-x-2 text-2xl font-extrabold text-[#091E42]">
-                <span>{from}</span>
-                <ArrowRight className="w-5 h-5 text-slate-400" />
-                <span>{to}</span>
+              <div className="flex items-center space-x-2 text-xl sm:text-2xl font-extrabold text-[#091E42]">
+                <span>{fromLabel}</span>
+                <ArrowRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                <span>{toLabel}</span>
               </div>
               <p className="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-1">
                 <span className="flex items-center gap-1 font-semibold text-slate-700">
@@ -192,7 +334,9 @@ const FlightResults = () => {
                 <span>•</span>
                 <span>{passengers} {passengers === 1 ? 'Passenger' : 'Passengers'}</span>
                 <span>•</span>
-                <span className="text-[#0052CC] font-bold">{sortedFlights.length} Flights Available</span>
+                <span className="text-[#0052CC] font-bold">
+                  {noFlightOnDate ? '0 Flights on Date' : `${sortedFlights.length} Flights Available`}
+                </span>
               </p>
             </div>
           </div>
@@ -244,15 +388,15 @@ const FlightResults = () => {
                 <input
                   type="range"
                   min="2000"
-                  max="60000"
-                  step="500"
+                  max="100000"
+                  step="1000"
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(parseInt(e.target.value))}
                   className="w-full"
                 />
                 <div className="flex justify-between text-[10px] text-slate-400">
                   <span>{formatPrice(2000)}</span>
-                  <span>{formatPrice(60000)}</span>
+                  <span>{formatPrice(100000)}</span>
                 </div>
               </div>
 
@@ -321,6 +465,28 @@ const FlightResults = () => {
           {/* Right Main Column: Flight Cards List */}
           <div className="lg:col-span-9 space-y-4">
 
+            {/* Banner when showing route fallback flights */}
+            {isShowingRouteFallback && (
+              <div className="bg-[#DEEBFF] border border-[#B3D4FF] text-[#0052CC] p-4 rounded-2xl flex items-center justify-between gap-3 text-xs animate-fade-in-up">
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-[#0052CC] flex-shrink-0" />
+                  <span>
+                    Showing <strong>{sortedFlights.length}</strong> upcoming flights for <strong>{fromLabel} → {toLabel}</strong> (from today onwards).
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsShowingRouteFallback(false);
+                    setNoFlightOnDate(true);
+                    setFlights([]);
+                  }}
+                  className="text-xs text-[#0052CC] font-bold hover:underline whitespace-nowrap"
+                >
+                  Back to date notice
+                </button>
+              </div>
+            )}
+
             {/* Sorting Toolbar */}
             <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center space-x-2 text-slate-500 font-medium">
@@ -353,8 +519,8 @@ const FlightResults = () => {
               </div>
             </div>
 
-            {/* Flight Cards Stream */}
-            {loading ? (
+            {/* Flight Cards Stream / States */}
+            {loading || loadingRouteFallback ? (
               <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm">
                 <LoadingSpinner text="Searching available Enum Airways flights..." />
               </div>
@@ -366,21 +532,102 @@ const FlightResults = () => {
                   <p className="text-xs text-red-600">{error}</p>
                 </div>
               </div>
-            ) : sortedFlights.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-sm">
+            ) : noFlightOnDate && !isShowingRouteFallback ? (
+              /* Specific Date No Flights Available Banner + Route Option */
+              <div className="bg-white border border-amber-200 rounded-2xl p-8 text-center space-y-5 shadow-sm animate-fade-in-up">
+                <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto border border-amber-200 shadow-xs">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                <div className="space-y-1.5 max-w-md mx-auto">
+                  <h3 className="text-xl font-extrabold text-[#091E42]">
+                    No flights available for this route and date.
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    We couldn't find any direct flights scheduled for <strong>{fromLabel} → {toLabel}</strong> on {date}.
+                  </p>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShowAllRouteFlights}
+                    className="w-full sm:w-auto bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold px-6 py-3.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Show all flights for {fromLabel} → {toLabel} (from today)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleReturnToSearch}
+                    className="w-full sm:w-auto bg-[#F4F5F7] hover:bg-slate-200 text-[#091E42] font-bold px-5 py-3.5 rounded-xl text-xs transition border border-slate-300"
+                  >
+                    Search Another Route / Date
+                  </button>
+                </div>
+              </div>
+            ) : isShowingRouteFallback && sortedFlights.length === 0 ? (
+              /* Route has 0 scheduled flights in database */
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-sm animate-fade-in-up">
                 <Plane className="w-12 h-12 text-slate-400 mx-auto" />
-                <h3 className="text-lg font-bold text-[#091E42]">No Flights Matching Criteria</h3>
-                <p className="text-slate-500 text-xs max-w-md mx-auto">
-                  We couldn't find flights matching your selected filters. Try broadening your price threshold, clearing filters, or checking a different date.
+                <h3 className="text-xl font-extrabold text-[#091E42]">
+                  No Scheduled Flights for {fromLabel} → {toLabel}
+                </h3>
+                <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
+                  There are currently no scheduled flights operating on the route from <strong>{fromLabel}</strong> to <strong>{toLabel}</strong>. Please try selecting a primary hub route (e.g. Mumbai, Delhi, Bengaluru).
                 </p>
-                <button
-                  onClick={handleResetFilters}
-                  className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold px-6 py-2.5 rounded-xl text-xs transition"
-                >
-                  Reset All Filters
-                </button>
+                <div className="flex flex-col sm:flex-row justify-center gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleReturnToSearch}
+                    className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Search New Route</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsShowingRouteFallback(false);
+                      setNoFlightOnDate(true);
+                      setFlights([]);
+                    }}
+                    className="bg-[#F4F5F7] hover:bg-slate-200 text-[#091E42] font-bold px-5 py-3 rounded-xl text-xs transition border border-slate-300"
+                  >
+                    Back to Date Notice
+                  </button>
+                </div>
+              </div>
+            ) : sortedFlights.length === 0 ? (
+              /* Flights exist, but were filtered out by sidebar price/time filters */
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-sm animate-fade-in-up">
+                <SlidersHorizontal className="w-12 h-12 text-slate-400 mx-auto" />
+                <h3 className="text-xl font-extrabold text-[#091E42]">
+                  No Flights Matching Your Filters
+                </h3>
+                <p className="text-slate-500 text-xs max-w-md mx-auto leading-relaxed">
+                  Flights are available for this route, but none match your selected price threshold or departure time filters. Click below to clear your filters.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold px-6 py-3 rounded-xl text-xs transition shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Reset All Filters</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReturnToSearch}
+                    className="bg-[#F4F5F7] hover:bg-slate-200 text-[#091E42] font-bold px-5 py-3 rounded-xl text-xs transition border border-slate-300"
+                  >
+                    Search New Route
+                  </button>
+                </div>
               </div>
             ) : (
+              /* Flights List */
               <div className="space-y-4">
                 {sortedFlights.map((flight) => (
                   <FlightCard

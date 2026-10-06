@@ -29,6 +29,8 @@ import Profile from './pages/Profile';
 // Admin / Staff Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminFlights from './pages/admin/AdminFlights';
+import StaffManagement from './pages/admin/StaffManagement';
+import CrewAssignment from './pages/admin/CrewAssignment';
 
 function App() {
   return (
@@ -49,6 +51,7 @@ function App() {
                 <Route path="/help" element={<Help />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/terms-and-conditions" element={<Terms />} />
                 <Route path="/baggage-rules" element={<BaggageRules />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -101,6 +104,22 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="Staff">
                       <AdminFlights />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/staff"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <StaffManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/crew"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <CrewAssignment />
                     </ProtectedRoute>
                   }
                 />

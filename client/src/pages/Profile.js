@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -11,11 +12,16 @@ import {
   ShieldCheck,
   Award,
   Phone,
-  Globe
+  Globe,
+  Trash2,
+  AlertTriangle,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const [passportNumber, setPassportNumber] = useState('');
   const [nationality, setNationality] = useState('India');
@@ -26,6 +32,20 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Change password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(null);
+
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,6 +98,70 @@ const Profile = () => {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+
+    setPasswordSaving(true);
+
+    try {
+      await api.put('/auth/password', {
+        currentPassword,
+        newPassword
+      });
+
+      setPasswordSuccess('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || err.message || 'Failed to update password. Please check your current password.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async (e) => {
+    e.preventDefault();
+    if (!deletePassword) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await api.delete('/auth/account', {
+        data: { password: deletePassword }
+      });
+
+      // Clear local session & invalidate token
+      logout();
+
+      // Redirect to login page with confirmation message
+      const message = encodeURIComponent('Your account has been successfully deleted.');
+      navigate(`/login?message=${message}`);
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || err.message || 'Failed to delete account. Please verify your password.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner text="Retrieving passenger identity..." />;
   }
@@ -92,7 +176,7 @@ const Profile = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-[#0052CC]">Passenger Center</span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#091E42]">My Profile & Travel Credentials</h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Manage your travel identity documents and frequent flyer points for seamless check-in.
+              Manage your travel identity documents, security credentials, and frequent flyer points.
             </p>
           </div>
 
@@ -209,7 +293,199 @@ const Profile = () => {
 
         </div>
 
+        {/* Change Password Card */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+          <div className="flex items-center space-x-2 text-[#0052CC] font-extrabold text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">
+            <Lock className="w-4 h-4 flex-shrink-0" />
+            <span>Change Account Password</span>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Ensure your account is using a strong password. You will need your current password to set a new one.
+          </p>
+
+          {passwordError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-3.5 rounded-xl flex items-center space-x-2 text-xs animate-fade-in-up">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{passwordError}</span>
+            </div>
+          )}
+
+          {passwordSuccess && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-xl flex items-center space-x-2 text-xs animate-fade-in-up">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+              <span>{passwordSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <KeyRound className="w-3.5 h-3.5 text-[#0052CC]" />
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-[#F4F5F7] border border-slate-300 rounded-xl px-3.5 py-2.5 text-[#091E42] text-xs focus:ring-2 focus:ring-[#0052CC] focus:outline-none focus:bg-white font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-[#0052CC]" />
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-[#F4F5F7] border border-slate-300 rounded-xl px-3.5 py-2.5 text-[#091E42] text-xs focus:ring-2 focus:ring-[#0052CC] focus:outline-none focus:bg-white font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1">
+                  <Lock className="w-3.5 h-3.5 text-[#0052CC]" />
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  className="w-full bg-[#F4F5F7] border border-slate-300 rounded-xl px-3.5 py-2.5 text-[#091E42] text-xs focus:ring-2 focus:ring-[#0052CC] focus:outline-none focus:bg-white font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={passwordSaving || !currentPassword || !newPassword || !confirmNewPassword}
+                className="flex items-center space-x-2 bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold py-2.5 px-5 rounded-xl text-xs shadow-md transition disabled:opacity-50 active:scale-95 cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{passwordSaving ? 'Updating...' : 'Change Password'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Account Settings & Danger Zone */}
+        {user?.role !== 'Admin' ? (
+          <div className="bg-white border border-red-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+            <div className="flex items-center space-x-2 text-red-600 font-extrabold text-sm border-b border-red-100 pb-3 uppercase tracking-wider">
+              <Trash2 className="w-4 h-4 flex-shrink-0" />
+              <span>Account Settings & Danger Zone</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="font-bold text-sm text-[#091E42]">Delete Account</h4>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  Permanently remove your user account. Historical booking, payment, and ticket records are safely retained for operational and financial compliance.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 flex items-center gap-2 font-medium">
+            <ShieldCheck className="w-4 h-4 text-[#0052CC]" />
+            <span>Admin accounts cannot be deleted through this user-facing setting.</span>
+          </div>
+        )}
+
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-6 text-[#172B4D]">
+
+            <div className="flex items-start space-x-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#091E42]">Delete Account Confirmation</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  This action is <strong>permanent and cannot be undone</strong>. Your user account and login credentials will be permanently removed.
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmDelete} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Confirm Current Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Enter your current password"
+                  className="w-full bg-[#F4F5F7] border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-[#091E42] focus:ring-2 focus:ring-red-500 focus:outline-none focus:bg-white font-medium"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletePassword('');
+                    setDeleteError(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleting || !deletePassword}
+                  className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {deleting ? (
+                    <span>Deleting Account...</span>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Confirm Deletion</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

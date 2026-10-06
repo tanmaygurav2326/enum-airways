@@ -12,7 +12,9 @@ import {
   TrendingUp,
   BarChart3,
   Layers,
-  RefreshCw
+  RefreshCw,
+  Shield,
+  UserCheck
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -66,7 +68,7 @@ const AdminDashboard = () => {
       <div className="max-w-7xl mx-auto space-y-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs uppercase font-extrabold text-[#0052CC] tracking-wider">
@@ -80,17 +82,31 @@ const AdminDashboard = () => {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={fetchDashboardStats}
-              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold text-[#172B4D] transition shadow-xs"
+              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#172B4D] transition shadow-xs"
             >
               <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Refresh Stats</span>
+              <span>Refresh</span>
             </button>
             <Link
+              to="/admin/staff"
+              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#0052CC] shadow-xs transition"
+            >
+              <Shield className="w-3.5 h-3.5 text-[#0052CC]" />
+              <span>Staff Registry</span>
+            </Link>
+            <Link
+              to="/admin/crew"
+              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-purple-700 shadow-xs transition"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-purple-600" />
+              <span>Crew Assignment</span>
+            </Link>
+            <Link
               to="/admin/flights"
-              className="flex items-center space-x-1.5 bg-[#0052CC] hover:bg-[#003A8C] px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm transition"
+              className="flex items-center space-x-1.5 bg-[#0052CC] hover:bg-[#003A8C] px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm transition"
             >
               <Plane className="w-3.5 h-3.5" />
               <span>Manage Flights</span>

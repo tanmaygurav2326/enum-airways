@@ -12,8 +12,12 @@ const PassengerSelector = ({
   const triggerRef = useRef(null);
   const popupRef = useRef(null);
 
+  const { adt = 1, chd = 0, inf = 0, um = 0 } = passengers;
+  const totalPax = adt + chd + inf + um;
+  const isUmActive = um > 0;
+  const isStandardActive = (adt + chd + inf) > 0;
+
   // Position popup using fixed coords derived from trigger button rect.
-  // This escapes any overflow:hidden ancestor (the booking card, the form, the grid).
   const updatePosition = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
@@ -47,6 +51,9 @@ const PassengerSelector = ({
         triggerRef.current && !triggerRef.current.contains(e.target) &&
         popupRef.current && !popupRef.current.contains(e.target)
       ) {
+        if (totalPax === 0) {
+          onChange({ adt: 1, chd: 0, inf: 0, um: 0 });
+        }
         setIsOpen(false);
       }
     };
@@ -59,14 +66,9 @@ const PassengerSelector = ({
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', updatePosition);
     };
-  }, [isOpen]);
+  }, [isOpen, totalPax, onChange]);
 
-  const { adt = 1, chd = 0, inf = 0, um = 0 } = passengers;
-  const totalPax = adt + chd + inf + um;
-  const isUmActive = um > 0;
-  const isStandardActive = (adt + chd + inf) > 0;
-
-  // Handlers enforcing airline rules
+  // Handlers enforcing passenger & airline rules
   const handleUpdate = (type, delta) => {
     const next = { ...passengers };
 
@@ -79,40 +81,39 @@ const PassengerSelector = ({
         next.inf = 0;
       } else {
         next.um = Math.max((next.um || 0) - 1, 0);
-        // If UM becomes 0, default to 1 ADT to satisfy >=1 passenger rule
-        if (next.um === 0) {
-          next.adt = 1;
-        }
       }
     } else {
       // Standard passengers (ADT, CHD, INF)
-      // When adding standard passenger, UM must be 0
+      // Reset UM to 0 when selecting standard passengers
       next.um = 0;
 
       if (type === 'adt') {
-        const nextAdt = Math.max(0, next.adt + delta);
-        // Total cannot exceed maxTotal
         if (delta > 0 && totalPax >= maxTotal) return;
+        const nextAdt = Math.max(0, next.adt + delta);
         next.adt = nextAdt;
-        // Rule: INF count cannot exceed ADT count
+        // Rule: Infant count cannot exceed Adult count
         if (next.inf > next.adt) {
           next.inf = next.adt;
         }
-        // At least 1 passenger rule: if total would be 0, do not decrement
-        if (next.adt + next.chd + next.inf === 0) {
-          next.adt = 1;
+        // Rule: Children and Infants require at least 1 Adult
+        if (next.adt === 0) {
+          next.chd = 0;
+          next.inf = 0;
         }
       } else if (type === 'chd') {
-        if (delta > 0 && totalPax >= maxTotal) return;
-        next.chd = Math.max(0, next.chd + delta);
-        if (next.adt + next.chd + next.inf === 0) {
-          next.adt = 1;
+        if (delta > 0) {
+          if (totalPax >= maxTotal) return;
+          // Rule: Children must be accompanied by at least 1 Adult
+          if (next.adt <= 0) return;
+          next.chd = next.chd + 1;
+        } else {
+          next.chd = Math.max(0, next.chd - 1);
         }
       } else if (type === 'inf') {
         if (delta > 0) {
           if (totalPax >= maxTotal) return;
-          // Rule: INF count cannot exceed ADT count
-          if (next.inf >= next.adt) return;
+          // Rule: Infant count cannot exceed Adult count, requires ADT >= 1
+          if (next.adt <= 0 || next.inf >= next.adt) return;
           next.inf = next.inf + 1;
         } else {
           next.inf = Math.max(0, next.inf - 1);
@@ -123,8 +124,11 @@ const PassengerSelector = ({
     onChange(next);
   };
 
-  // Generate clean summary text for input box
+  // Summary text for input trigger
   const getSummary = () => {
+    if (totalPax === 0) {
+      return 'Select Passengers';
+    }
     if (isUmActive) {
       return `${um} Unaccompanied Minor${um > 1 ? 's' : ''}`;
     }
@@ -132,10 +136,10 @@ const PassengerSelector = ({
     if (adt > 0) parts.push(`${adt} Adult${adt > 1 ? 's' : ''}`);
     if (chd > 0) parts.push(`${chd} Child${chd > 1 ? 'ren' : ''}`);
     if (inf > 0) parts.push(`${inf} Infant${inf > 1 ? 's' : ''}`);
-    return parts.length > 0 ? parts.join(', ') : '1 Adult';
+    return parts.length > 0 ? parts.join(', ') : 'Select Passengers';
   };
 
-  // Popup rendered via ReactDOM.createPortal so it escapes all overflow:hidden ancestors
+  // Popup rendered via portal
   const popup = isOpen && (
     <div
       ref={popupRef}
@@ -148,7 +152,9 @@ const PassengerSelector = ({
           <p className="text-[11px] text-slate-500">Maximum {maxTotal} passengers per booking</p>
         </div>
         <div className="text-right">
-          <span className="text-xs font-bold text-[#0052CC] bg-[#DEEBFF] px-2.5 py-1 rounded-full">
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+            totalPax === 0 ? 'text-red-700 bg-red-50' : 'text-[#0052CC] bg-[#DEEBFF]'
+          }`}>
             {totalPax} / {maxTotal}
           </span>
         </div>
@@ -169,7 +175,7 @@ const PassengerSelector = ({
           <div className="flex items-center space-x-2">
             <button
               type="button"
-              disabled={adt <= 0 || (adt === 1 && chd === 0 && inf === 0) || isUmActive}
+              disabled={adt <= 0 || isUmActive}
               onClick={() => handleUpdate('adt', -1)}
               className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-[#DEEBFF] hover:border-[#0052CC] hover:text-[#0052CC] disabled:opacity-30 disabled:cursor-not-allowed transition active:scale-95"
               aria-label="Decrease Adults"
@@ -213,9 +219,10 @@ const PassengerSelector = ({
             <span className="w-6 text-center font-bold text-sm text-[#091E42]">{chd}</span>
             <button
               type="button"
-              disabled={totalPax >= maxTotal || isUmActive}
+              disabled={totalPax >= maxTotal || adt === 0 || isUmActive}
               onClick={() => handleUpdate('chd', 1)}
               className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-[#DEEBFF] hover:border-[#0052CC] hover:text-[#0052CC] disabled:opacity-30 disabled:cursor-not-allowed transition active:scale-95"
+              title={adt === 0 ? 'Children must be accompanied by at least 1 Adult' : 'Add Child'}
               aria-label="Increase Children"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -247,10 +254,10 @@ const PassengerSelector = ({
             <span className="w-6 text-center font-bold text-sm text-[#091E42]">{inf}</span>
             <button
               type="button"
-              disabled={totalPax >= maxTotal || inf >= adt || isUmActive}
+              disabled={totalPax >= maxTotal || inf >= adt || adt === 0 || isUmActive}
               onClick={() => handleUpdate('inf', 1)}
               className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-[#DEEBFF] hover:border-[#0052CC] hover:text-[#0052CC] disabled:opacity-30 disabled:cursor-not-allowed transition active:scale-95"
-              title={inf >= adt ? 'Every infant must be accompanied by an adult' : 'Add Infant'}
+              title={adt === 0 ? 'Requires at least 1 Adult' : inf >= adt ? 'Every infant must be accompanied by an adult' : 'Add Infant'}
               aria-label="Increase Infants"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -284,10 +291,10 @@ const PassengerSelector = ({
               <span className="w-6 text-center font-bold text-sm text-[#091E42]">{um}</span>
               <button
                 type="button"
-                disabled={totalPax >= maxTotal || isStandardActive}
+                disabled={totalPax >= maxTotal}
                 onClick={() => handleUpdate('um', 1)}
                 className="w-8 h-8 rounded-lg border border-slate-300 flex items-center justify-center text-slate-600 hover:bg-[#DEEBFF] hover:border-[#0052CC] hover:text-[#0052CC] disabled:opacity-30 disabled:cursor-not-allowed transition active:scale-95"
-                title={isStandardActive ? 'Cannot add UM when Adult/Child/Infant are selected' : 'Add UM'}
+                title="Select Unaccompanied Minor"
                 aria-label="Increase Unaccompanied Minors"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -301,21 +308,35 @@ const PassengerSelector = ({
           <div className="bg-amber-50 border border-amber-200 text-amber-800 p-2.5 rounded-xl text-[11px] flex items-start gap-1.5 animate-fade-in-up">
             <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
             <span>
-              Unaccompanied Minor service selected. Adult, child, and infant selections are disabled. Dedicated airport assistance is included.
+              Unaccompanied Minor service selected. Adult, child, and infant selections are cleared. Dedicated airport assistance is included.
             </span>
           </div>
         )}
       </div>
 
-      {/* Close / Apply button */}
-      <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+      {/* Confirm Selection Footer Button */}
+      <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div className="text-xs font-medium">
+          {totalPax === 0 ? (
+            <span className="text-red-600 flex items-center gap-1 font-bold text-[11px]">
+              <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+              Select at least 1 passenger
+            </span>
+          ) : (
+            <span className="text-slate-500 font-semibold">{getSummary()}</span>
+          )}
+        </div>
+
         <button
           type="button"
-          onClick={() => setIsOpen(false)}
-          className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold text-xs px-5 py-2 rounded-xl transition shadow-sm active:scale-95 flex items-center gap-1.5"
+          disabled={totalPax === 0}
+          onClick={() => {
+            if (totalPax > 0) setIsOpen(false);
+          }}
+          className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
         >
           <UserCheck className="w-3.5 h-3.5" />
-          <span>Apply Selection</span>
+          <span>Confirm Selection</span>
         </button>
       </div>
     </div>
@@ -336,12 +357,14 @@ const PassengerSelector = ({
         className="w-full bg-[#F4F5F7] border border-slate-300 rounded-xl px-3.5 py-3 text-[#091E42] font-bold text-sm focus:ring-2 focus:ring-[#0052CC] focus:outline-none focus:bg-white text-left flex items-center justify-between transition hover:border-[#0052CC]"
       >
         <span className="truncate">{getSummary()}</span>
-        <span className="bg-[#DEEBFF] text-[#0052CC] text-[11px] px-2 py-0.5 rounded-full font-bold ml-2">
+        <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ml-2 ${
+          totalPax === 0 ? 'bg-red-100 text-red-700' : 'bg-[#DEEBFF] text-[#0052CC]'
+        }`}>
           {totalPax} PAX
         </span>
       </button>
 
-      {/* Render popup via portal so it escapes all overflow:hidden ancestors */}
+      {/* Render popup via portal */}
       {ReactDOM.createPortal(popup, document.body)}
     </div>
   );
