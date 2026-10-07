@@ -73,8 +73,8 @@ const adminService = {
       const occupancy = await executeQuery(
         `SELECT F.FlightNumber, F.FlightID,
                 A.TotalSeats,
-                (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID AND Status = 'OCCUPIED') as OccupiedSeats,
-                ROUND(100 * (SELECT COUNT(*) FROM AircraftSeats WHERE AircraftID = F.AircraftID AND Status = 'OCCUPIED') / A.TotalSeats, 2) as OccupancyRate
+                (SELECT COUNT(*) FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND B.Status != 'Cancelled') as OccupiedSeats,
+                ROUND(100 * (SELECT COUNT(*) FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE T.FlightID = F.FlightID AND B.Status != 'Cancelled') / GREATEST(A.TotalSeats, 1), 2) as OccupancyRate
          FROM Flights F
          JOIN Aircraft A ON F.AircraftID = A.AircraftID
          ORDER BY OccupancyRate DESC`
@@ -86,7 +86,7 @@ const adminService = {
       );
 
       const occupiedSeats = await executeQuery(
-        `SELECT COUNT(*) as OccupiedSeats FROM AircraftSeats WHERE Status = 'OCCUPIED'`
+        `SELECT COUNT(*) as OccupiedSeats FROM Tickets T JOIN Bookings B ON T.BookingID = B.BookingID WHERE B.Status != 'Cancelled'`
       );
 
       const total = totalSeats[0]?.TOTALSEATS || 0;

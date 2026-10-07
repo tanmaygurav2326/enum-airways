@@ -15,7 +15,6 @@ const PassengerSelector = ({
   const { adt = 1, chd = 0, inf = 0, um = 0 } = passengers;
   const totalPax = adt + chd + inf + um;
   const isUmActive = um > 0;
-  const isStandardActive = (adt + chd + inf) > 0;
 
   // Position popup using fixed coords derived from trigger button rect.
   const updatePosition = () => {

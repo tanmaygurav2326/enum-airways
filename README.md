@@ -109,7 +109,7 @@ JWT_EXPIRE=5h
 
 # URLs
 REACT_APP_URL=http://localhost:3000
-API_BASE_URL=http://localhost:5000/api
+API_BASE_URL=https://country-sitemap-yourself-extract.trycloudflare.com
 ```
 
 ### Client Configuration (`client/.env`)

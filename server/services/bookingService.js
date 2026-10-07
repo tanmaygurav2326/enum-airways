@@ -168,6 +168,11 @@ const bookingService = {
         }
       );
 
+      await connection.execute(
+        `DELETE FROM Tickets WHERE BookingID = :bookingId`,
+        { bookingId }
+      );
+
       await connection.commit();
 
       return {
@@ -202,7 +207,7 @@ const bookingService = {
                 U.FirstName, U.LastName, U.Email,
                 COALESCE((SELECT SUM(TicketPrice) FROM Tickets WHERE BookingID = B.BookingID), 0) AS TotalAmount
          FROM Bookings B
-         JOIN Users U ON B.UserID = U.UserID
+         LEFT JOIN Users U ON B.UserID = U.UserID
          WHERE B.BookingID = :bookingId`,
         { bookingId }
       );

@@ -18,10 +18,16 @@ const errorHandler = (err, req, res, next) => {
     message = 'Duplicate entry found';
   }
 
-  if (err.code === 'ORA-01745') {
+  if (err.code === 'ORA-01745' || err.code === 'ORA-02290' || err.code === 'ORA-01400') {
     statusCode = 400;
     code = 'INVALID_INPUT';
-    message = 'Invalid SQL parameter';
+    message = 'Data validation constraint failed';
+  }
+
+  if (err.code === 'ORA-02291') {
+    statusCode = 400;
+    code = 'INVALID_REFERENCE';
+    message = 'Referenced record does not exist';
   }
 
   if (err.name === 'JsonWebTokenError') {

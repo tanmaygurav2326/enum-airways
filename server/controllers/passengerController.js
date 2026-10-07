@@ -20,8 +20,7 @@ const passengerController = {
         return res.status(response.statusCode).json(response.body);
       }
 
-      const passenger = await passengerService.createPassenger({
-        userId,
+      const passenger = await passengerService.updatePassengerByUserId(userId, {
         passportNumber,
         nationality,
         phoneNumber,

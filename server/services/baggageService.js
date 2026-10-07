@@ -47,13 +47,15 @@ const baggageService = {
       }
 
       // Create baggage entry
+      const trackingNumber = 'BAG-' + Date.now().toString().slice(-6) + '-' + Math.floor(1000 + Math.random() * 9000);
       await executeQuery(
-        `INSERT INTO Baggage (TicketID, WeightKG, Status)
-         VALUES (:ticketId, :weightKg, :status)`,
+        `INSERT INTO Baggage (TicketID, WeightKG, Status, TrackingNumber)
+         VALUES (:ticketId, :weightKg, :status, :trackingNumber)`,
         {
           ticketId,
           weightKg,
-          status: BAGGAGE_STATUSES.CHECKED_IN
+          status: BAGGAGE_STATUSES.CHECKED_IN,
+          trackingNumber
         }
       );
 

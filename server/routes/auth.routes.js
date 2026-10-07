@@ -49,6 +49,7 @@ router.post('/verify-otp', authController.verifyOTP);
  * Headers: { Authorization: 'Bearer <token>' }
  */
 router.get('/profile', authMiddleware, authController.getProfile);
+router.get('/me', authMiddleware, authController.getProfile);
 
 /**
  * PUT /api/auth/password

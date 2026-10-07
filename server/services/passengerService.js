@@ -83,6 +83,38 @@ const passengerService = {
   },
 
   /**
+   * Get passenger details (alias for getPassengerById)
+   */
+  getPassengerDetails: async (passengerId) => {
+    return await passengerService.getPassengerById(passengerId);
+  },
+
+  /**
+   * List all passenger profiles (admin only)
+   */
+  listAllPassengers: async () => {
+    const passengers = await executeQuery(
+      `SELECT P.PassengerID, P.UserID, P.PassportNumber, P.Nationality, P.PhoneNumber, P.FrequentFlyerNumber,
+              U.FirstName, U.LastName, U.Email
+       FROM Passengers P
+       LEFT JOIN Users U ON P.UserID = U.UserID
+       ORDER BY P.PassengerID ASC`
+    );
+
+    return (passengers || []).map(p => ({
+      passengerId: p.PASSENGERID,
+      userId: p.USERID,
+      firstName: p.FIRSTNAME,
+      lastName: p.LASTNAME,
+      email: p.EMAIL,
+      passportNumber: p.PASSPORTNUMBER,
+      nationality: p.NATIONALITY,
+      phoneNumber: p.PHONENUMBER,
+      frequentFlyerNumber: p.FREQUENTFLYERNUMBER
+    }));
+  },
+
+  /**
    * Get passenger by ID
    */
   getPassengerById: async (passengerId) => {
@@ -91,7 +123,7 @@ const passengerService = {
         `SELECT P.PassengerID, P.UserID, P.PassportNumber, P.Nationality, P.PhoneNumber, P.FrequentFlyerNumber,
                 U.FirstName, U.LastName, U.Email
          FROM Passengers P
-         JOIN Users U ON P.UserID = U.UserID
+         LEFT JOIN Users U ON P.UserID = U.UserID
          WHERE P.PassengerID = :passengerId`,
         { passengerId }
       );
@@ -178,7 +210,7 @@ const passengerService = {
         `SELECT P.PassengerID, P.UserID, P.PassportNumber, P.Nationality, P.PhoneNumber, P.FrequentFlyerNumber,
                 U.FirstName, U.LastName, U.Email
          FROM Passengers P
-         JOIN Users U ON P.UserID = U.UserID
+         LEFT JOIN Users U ON P.UserID = U.UserID
          WHERE P.UserID = :userId`,
         { userId }
       );

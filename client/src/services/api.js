@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://country-sitemap-yourself-extract.trycloudflare.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -35,8 +35,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.href = '/login';
+      if (!window.location.pathname.endsWith('/login') && !window.location.pathname.endsWith('/register')) {
+        const basename = process.env.PUBLIC_URL || '/enum-airways';
+        window.location.href = `${basename}/login`;
       }
     }
 

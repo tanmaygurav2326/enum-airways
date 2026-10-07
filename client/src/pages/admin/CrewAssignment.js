@@ -5,14 +5,12 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatusBadge from '../../components/ui/StatusBadge';
 import {
   Users,
-  Plane,
   UserPlus,
   Trash2,
   AlertCircle,
   CheckCircle2,
   RefreshCw,
   ArrowLeft,
-  Calendar,
   Shield,
   Award
 } from 'lucide-react';
@@ -66,6 +64,7 @@ const CrewAssignment = () => {
 
   useEffect(() => {
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Fetch crew roster when selected flight changes

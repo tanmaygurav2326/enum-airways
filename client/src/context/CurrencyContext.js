@@ -33,8 +33,9 @@ export const CurrencyProvider = ({ children }) => {
     const fetchRates = async () => {
       try {
         const res = await api.get('/currency/rates');
-        if (res?.data?.rates) {
-          setRates(res.data.rates);
+        const ratesData = res?.rates || res?.data?.rates || res?.data;
+        if (ratesData && ratesData.USD) {
+          setRates(ratesData);
         }
       } catch (e) {
         // Fall back to default rates

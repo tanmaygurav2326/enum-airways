@@ -28,8 +28,9 @@ const ManageBooking = () => {
     setError(null);
     try {
       const res = await api.get(`/bookings/lookup/${encodeURIComponent(refToFetch.trim().toUpperCase())}`);
-      if (res?.data?.data) {
-        setBooking(res.data.data);
+      const bookingData = res?.data?.data || res?.data || res;
+      if (bookingData && (bookingData.bookingReference || bookingData.bookingId || bookingData.BOOKINGID || bookingData.PNR)) {
+        setBooking(bookingData);
       } else {
         setError('Booking not found for this reference.');
       }

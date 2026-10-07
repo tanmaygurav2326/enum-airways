@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Luggage, CheckCircle2, ShieldAlert, Scale } from 'lucide-react';
 
 const BaggageRules = () => {
@@ -129,12 +130,12 @@ const BaggageRules = () => {
                 Use your bag tracking tag number on our real-time Baggage Tracker page.
               </p>
             </div>
-            <a
-              href="/baggage"
+            <Link
+              to="/baggage"
               className="bg-[#0052CC] hover:bg-[#003A8C] text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow-sm whitespace-nowrap"
             >
               Track Baggage Now
-            </a>
+            </Link>
           </div>
 
         </div>

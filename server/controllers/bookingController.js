@@ -77,7 +77,8 @@ const bookingController = {
         return res.status(response.statusCode).json(response.body);
       }
 
-      const booking = await bookingService.getBookingDetails(parseInt(bookingId));
+      const requestUserId = (req.user?.role === 'Admin' || req.user?.role === 'Staff') ? null : req.user?.userId;
+      const booking = await bookingService.getBookingDetails(parseInt(bookingId), requestUserId);
 
       const response = ApiResponse.success(
         200,
@@ -134,7 +135,8 @@ const bookingController = {
         return res.status(response.statusCode).json(response.body);
       }
 
-      const result = await bookingService.cancelBooking(parseInt(bookingId));
+      const requestUserId = (req.user?.role === 'Admin' || req.user?.role === 'Staff') ? null : req.user?.userId;
+      const result = await bookingService.cancelBooking(parseInt(bookingId), requestUserId);
 
       const response = ApiResponse.success(
         200,

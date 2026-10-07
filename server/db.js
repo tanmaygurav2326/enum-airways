@@ -93,8 +93,21 @@ async function getConnection() {
   }
 }
 
+async function closeDatabase() {
+  try {
+    const pool = oracledb.getPool();
+    if (pool) {
+      await pool.close(10);
+      console.log('✓ Oracle DB Pool drained and closed');
+    }
+  } catch (err) {
+    console.error('Error closing Oracle DB Pool:', err.message);
+  }
+}
+
 module.exports = {
   initializeDatabase,
   executeQuery,
-  getConnection  // For Phase 5 (booking transactions)
+  getConnection,
+  closeDatabase
 };

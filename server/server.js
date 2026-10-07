@@ -8,7 +8,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const { initializeDatabase } = require('./db');
+const { initializeDatabase, closeDatabase } = require('./db');
 const errorHandler = require('./middleware/errorHandler');
 
 // Routes - ALL PHASES
@@ -26,14 +26,35 @@ const currencyRoutes = require('./routes/currency.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const REACT_URL = process.env.REACT_APP_URL || 'http://localhsot:3000';
+const REACT_URL = process.env.REACT_APP_URL || 'http://localhost:3000';
 
 // ============================================
 // MIDDLEWARE
 // ============================================
 
+const allowedOrigins = [
+  REACT_URL,
+  'https://tanmaygurav2326.github.io',
+  'https://country-sitemap-yourself-extract.trycloudflare.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5000'
+];
+
 app.use(cors({
-  origin: REACT_URL,
+  origin: (origin, callback) => {
+    // Allow requests with no origin, or matching allowed origins or cloudflare/github domains
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.github.io') ||
+      origin.endsWith('.trycloudflare.com')
+    ) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS policy violation: Origin ${origin} not allowed`), false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -41,6 +62,9 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Serve static build from React client
+app.use(express.static(path.join(__dirname, '../client/build')));
 
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -76,6 +100,19 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/currency', currencyRoutes);
 
+// Catch-all route to serve React app for SPA routes (non-API)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  const indexPath = path.join(__dirname, '../client/build/index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    next();
+  }
+});
+
 // ============================================
 // 404 - ROUTE NOT FOUND
 // ============================================
@@ -110,13 +147,17 @@ const startServer = async () => {
       console.log(`🚀 Enum Airways Backend Server is ready on http://localhost:${PORT}/api`);
     });
 
-    process.on('SIGTERM', () => {
-      console.log('\n⚠️  SIGTERM received. Shutting down gracefully...');
-      server.close(() => {
+    const shutdown = async (signal) => {
+      console.log(`\n⚠️  ${signal} received. Shutting down gracefully...`);
+      server.close(async () => {
+        await closeDatabase();
         console.log('✓ Server closed');
         process.exit(0);
       });
-    });
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 
   } catch (error) {
     console.error('\n❌ STARTUP ERROR:', error.message);

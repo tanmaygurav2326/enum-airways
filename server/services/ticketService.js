@@ -177,7 +177,7 @@ const ticketService = {
                 F.FlightNumber, F.DepartureTime, F.ArrivalTime
          FROM Tickets T
          JOIN Passengers P ON T.PassengerID = P.PassengerID
-         JOIN Users U ON P.UserID = U.UserID
+         LEFT JOIN Users U ON P.UserID = U.UserID
          JOIN Flights F ON T.FlightID = F.FlightID
          WHERE T.TicketID = :ticketId`,
         { ticketId }
