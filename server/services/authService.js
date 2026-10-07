@@ -101,8 +101,8 @@ const authService = {
         const uRow = result.rows[0];
         const uId = Array.isArray(uRow) ? uRow[0] : (uRow.USERID || uRow.UserId);
         await connection.execute(
-          `UPDATE StaffRegistry SET IsAssigned = 1, AssignedUserID = :uId WHERE StaffID = :staffId`,
-          { uId, staffId }
+          `UPDATE StaffRegistry SET IsAssigned = 1, AssignedUserID = :assignedUserId WHERE StaffID = :staffId`,
+          { assignedUserId: uId, staffId }
         );
       }
 

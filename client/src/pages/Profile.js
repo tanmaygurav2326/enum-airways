@@ -16,7 +16,11 @@ import {
   Trash2,
   AlertTriangle,
   Lock,
-  KeyRound
+  KeyRound,
+  Briefcase,
+  Plane,
+  Calendar,
+  Clock
 } from 'lucide-react';
 
 const Profile = () => {
@@ -293,6 +297,11 @@ const Profile = () => {
 
         </div>
 
+        {/* Staff Duty Roster & Flight Assignments Section (visible for Staff & Admin) */}
+        {(user?.role === 'Staff' || user?.role === 'Admin') && (
+          <StaffAssignmentsSection userId={user?.userId} />
+        )}
+
         {/* Change Password Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
           <div className="flex items-center space-x-2 text-[#0052CC] font-extrabold text-sm border-b border-slate-100 pb-3 uppercase tracking-wider">
@@ -484,6 +493,114 @@ const Profile = () => {
             </form>
 
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Subcomponent: Staff Duty Roster & Flight Assignments Section
+const StaffAssignmentsSection = ({ userId }) => {
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      try {
+        const res = await api.get('/crews/my-assignments');
+        if (res?.data) {
+          setAssignments(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to load staff assignments:', err);
+        setError('Failed to load duty assignments.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchAssignments();
+    }
+  }, [userId]);
+
+  const roleBadges = {
+    'Pilot': 'bg-amber-100 text-amber-900 border-amber-300',
+    'Co-Pilot': 'bg-blue-100 text-blue-900 border-blue-300',
+    'Cabin Crew Lead': 'bg-purple-100 text-purple-900 border-purple-300',
+    'Cabin Crew': 'bg-emerald-100 text-emerald-900 border-emerald-300'
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+        <div className="flex items-center space-x-2 text-[#0052CC] font-extrabold text-sm uppercase tracking-wider">
+          <Briefcase className="w-4 h-4 flex-shrink-0" />
+          <span>My Flight Duty Roster & Operational Assignments</span>
+        </div>
+        <span className="text-xs font-bold text-slate-500">
+          {assignments.length} assigned flight{assignments.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <p className="text-xs text-slate-500 leading-relaxed">
+        Below is your live flight duty schedule assigned by Enum Airways Flight Operations.
+      </p>
+
+      {loading ? (
+        <div className="text-center py-6 text-xs text-slate-500">Loading duty roster...</div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-xs p-3 rounded-xl">{error}</div>
+      ) : assignments.length === 0 ? (
+        <div className="text-center py-8 text-xs text-slate-500 bg-[#F8F9FA] rounded-2xl border border-dashed border-slate-200 space-y-1">
+          <Plane className="w-6 h-6 text-slate-400 mx-auto" />
+          <p className="font-bold text-slate-700">No Duty Assignments Active</p>
+          <p className="text-[11px]">You currently have no flight assignments on your roster.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {assignments.map((item) => (
+            <div
+              key={item.assignmentId}
+              className="bg-[#F8F9FA] border border-slate-200 rounded-2xl p-4 space-y-2 hover:border-[#0052CC] transition"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-[#0052CC] text-base font-mono">
+                  {item.flightNumber}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${roleBadges[item.crewRole] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                  {item.crewRole}
+                </span>
+              </div>
+
+              <div className="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-200/60">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    Departure:
+                  </span>
+                  <span className="font-semibold text-[#091E42]">
+                    {new Date(item.departureTime).toLocaleString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    Status:
+                  </span>
+                  <span className="font-bold text-emerald-700">
+                    {item.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

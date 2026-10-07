@@ -288,7 +288,7 @@ const SeatSelection = () => {
           </div>
 
           {/* Main Aircraft Fuselage Shell */}
-          <div className="bg-white border-2 border-slate-300 rounded-t-[110px] rounded-b-3xl p-6 sm:p-10 shadow-md relative">
+          <div className="bg-white border-2 border-slate-300 rounded-t-[70px] sm:rounded-t-[110px] rounded-b-3xl p-4 sm:p-10 shadow-md relative overflow-x-auto">
 
             {/* Front / Cockpit Indicator */}
             <div className="text-center pb-6 border-b border-slate-200">

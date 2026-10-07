@@ -59,8 +59,8 @@ const PAYMENT_STATUSES = {
 const PAYMENT_METHODS = {
   CREDIT_CARD: 'Credit Card',
   DEBIT_CARD: 'Debit Card',
-  PAYPAL: 'PayPal',
-  STRIPE: 'Stripe'
+  UPI: 'UPI',
+  NET_BANKING: 'Net Banking'
 };
 
 const ERROR_CODES = {

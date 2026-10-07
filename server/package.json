@@ -26,6 +26,7 @@
     "oracledb": "^6.0.0"
   },
   "devDependencies": {
+    "docx": "^9.9.0",
     "nodemon": "^2.0.22"
   }
 }

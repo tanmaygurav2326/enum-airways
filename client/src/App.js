@@ -37,7 +37,7 @@ function App() {
     <AuthProvider>
       <CurrencyProvider>
         <Router>
-          <div className="flex flex-col min-h-screen bg-[#F8F9FA] text-[#172B4D] font-sans selection:bg-[#0052CC] selection:text-white">
+          <div className="flex flex-col min-h-screen max-w-full overflow-x-hidden bg-[#F8F9FA] text-[#172B4D] font-sans selection:bg-[#0052CC] selection:text-white">
             <Navbar />
             <main className="flex-1">
               <Routes>

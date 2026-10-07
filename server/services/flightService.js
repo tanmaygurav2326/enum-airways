@@ -92,8 +92,8 @@ const flightService = {
       // Build WHERE clause dynamically
       // NOTE: Using explicit bind variable names to avoid Oracle reserved word conflicts
       let whereConditions = [
-        `F.DepartureAirport = :departureAirportCode`,
-        `F.ArrivalAirport = :arrivalAirportCode`,
+        `(UPPER(F.DepartureAirport) = :departureAirportCode OR UPPER(AP1.City) = :departureAirportCode)`,
+        `(UPPER(F.ArrivalAirport) = :arrivalAirportCode OR UPPER(AP2.City) = :arrivalAirportCode)`,
         `TRUNC(F.DepartureTime) = TO_DATE(:flightDepartureDate, 'YYYY-MM-DD')`,
         `F.Status != :flightCancelledStatus`
       ];

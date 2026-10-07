@@ -257,6 +257,48 @@ const baggageService = {
         code: ERROR_CODES.DATABASE_ERROR
       };
     }
+  },
+
+  /**
+   * Get all baggage entries across all flights (admin/staff)
+   * @returns {Promise<array>}
+   */
+  getAllBaggage: async () => {
+    try {
+      const baggage = await executeQuery(
+        `SELECT B.BaggageID, B.TicketID, B.WeightKG, B.Status, B.TrackingNumber,
+                T.FlightID, T.SeatNumber,
+                F.FlightNumber, F.DepartureAirport, F.ArrivalAirport,
+                U.FirstName, U.LastName, U.Email
+         FROM Baggage B
+         JOIN Tickets T ON B.TicketID = T.TicketID
+         JOIN Flights F ON T.FlightID = F.FlightID
+         JOIN Bookings BK ON T.BookingID = BK.BookingID
+         LEFT JOIN Users U ON BK.UserID = U.UserID
+         ORDER BY B.BaggageID DESC`
+      );
+
+      return (baggage || []).map(b => ({
+        baggageId: b.BAGGAGEID,
+        ticketId: b.TICKETID,
+        trackingNumber: b.TRACKINGNUMBER,
+        weightKg: b.WEIGHTKG,
+        status: b.STATUS,
+        flightNumber: b.FLIGHTNUMBER,
+        departureAirport: b.DEPARTUREAIRPORT,
+        arrivalAirport: b.ARRIVALAIRPORT,
+        seatNumber: b.SEATNUMBER,
+        passengerName: b.FIRSTNAME ? `${b.FIRSTNAME} ${b.LASTNAME || ''}` : 'Guest Traveler',
+        passengerEmail: b.EMAIL || 'N/A'
+      }));
+    } catch (error) {
+      console.error('Get all baggage error:', error.message);
+      throw {
+        status: 500,
+        message: 'Failed to retrieve baggage list',
+        code: ERROR_CODES.DATABASE_ERROR
+      };
+    }
   }
 };
 

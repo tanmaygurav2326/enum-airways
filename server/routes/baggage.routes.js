@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/auth');
 const authorize = require('../middleware/authorize');
 const baggageController = require('../controllers/baggageController');
 
+router.get('/', authMiddleware, authorize('Staff', 'Admin'), baggageController.getAllBaggage);
 router.post('/', authMiddleware, baggageController.createBaggage);
 router.get('/:baggageId', authMiddleware, baggageController.getBaggageDetails);
 router.get('/tracking/:trackingNumber', baggageController.getBaggageByTracking);

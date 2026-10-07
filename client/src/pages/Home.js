@@ -24,10 +24,10 @@ import PassengerSelector from '../components/ui/PassengerSelector';
 const POPULAR_ROUTES = [
   { from: 'BOM', to: 'DEL', fromCity: 'Mumbai', toCity: 'Delhi', price: 4200, time: '2h 10m', type: 'Domestic Express' },
   { from: 'DEL', to: 'BLR', fromCity: 'Delhi', toCity: 'Bengaluru', price: 4800, time: '2h 45m', type: 'Metro Hub' },
-  { from: 'PNQ', to: 'DEL', fromCity: 'Pune', toCity: 'Delhi', price: 3900, time: '2h 05m', type: 'Business Route' },
+  { from: 'PNQ', to: 'BOM', fromCity: 'Pune', toCity: 'Mumbai', price: 3900, time: '2h 05m', type: 'Business Route' },
   { from: 'BOM', to: 'BLR', fromCity: 'Mumbai', toCity: 'Bengaluru', price: 3400, time: '1h 45m', type: 'Domestic Express' },
-  { from: 'HYD', to: 'MAA', fromCity: 'Hyderabad', toCity: 'Chennai', price: 3100, time: '1h 20m', type: 'Southern Corridor' },
-  { from: 'BOM', to: 'DXB', fromCity: 'Mumbai', toCity: 'Dubai', price: 16800, time: '3h 30m', type: 'International' },
+  { from: 'HYD', to: 'DEL', fromCity: 'Hyderabad', toCity: 'Delhi', price: 3100, time: '2h 15m', type: 'Capital Corridor' },
+  { from: 'MAA', to: 'SIN', fromCity: 'Chennai', toCity: 'Singapore', price: 14500, time: '4h 15m', type: 'International' },
 ];
 
 const Home = () => {

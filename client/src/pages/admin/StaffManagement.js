@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import {
   Users,
@@ -13,10 +14,12 @@ import {
   Search,
   KeyRound,
   Shield,
-  ArrowLeft
+  ArrowLeft,
+  Lock
 } from 'lucide-react';
 
 const StaffManagement = () => {
+  const { user } = useAuth();
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,9 +52,15 @@ const StaffManagement = () => {
     e.preventDefault();
     if (!newStaffId.trim()) return;
 
-    setCreating(true);
     setError(null);
     setSuccess(null);
+
+    if (user?.role !== 'Admin') {
+      setError('Access Denied: Only System Administrators can issue new Staff IDs.');
+      return;
+    }
+
+    setCreating(true);
 
     try {
       const res = await api.post('/admin/staff', { staffId: newStaffId.trim().toUpperCase() });
@@ -59,27 +68,33 @@ const StaffManagement = () => {
       setNewStaffId('');
       fetchStaffRegistry();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to create Staff ID');
+      setError(err.response?.data?.message || err.message || 'Access Denied: Admin permission required to issue Staff IDs.');
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeleteStaffId = async (staffId) => {
+    setError(null);
+    setSuccess(null);
+
+    if (user?.role !== 'Admin') {
+      setError('Access Denied: Only System Administrators can delete Staff IDs from the registry.');
+      return;
+    }
+
     if (!window.confirm(`Are you sure you want to delete unassigned Staff ID ${staffId}?`)) {
       return;
     }
 
     setDeletingId(staffId);
-    setError(null);
-    setSuccess(null);
 
     try {
       const res = await api.delete(`/admin/staff/${staffId}`);
       setSuccess(res?.message || `Staff ID ${staffId} deleted successfully`);
       fetchStaffRegistry();
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to delete Staff ID');
+      setError(err.response?.data?.message || err.message || 'Access Denied: Admin permission required to delete Staff IDs.');
     } finally {
       setDeletingId(null);
     }
@@ -201,6 +216,13 @@ const StaffManagement = () => {
                 Generate an official credential for a new airline employee before they register.
               </p>
             </div>
+
+            {user?.role !== 'Admin' && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3.5 rounded-xl text-xs flex items-center space-x-2 animate-fade-in">
+                <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span><strong>Admin Required:</strong> Staff accounts are in view-only mode. Only System Administrators can issue or delete Staff IDs.</span>
+              </div>
+            )}
 
             <form onSubmit={handleCreateStaffId} className="space-y-4">
               <div>

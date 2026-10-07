@@ -168,6 +168,29 @@ const baggageController = {
         next({ status: 500, message: 'Failed to retrieve baggage', code: 'SERVER_ERROR' });
       }
     }
+  },
+
+  /**
+   * GET /api/baggage
+   * Get all baggage entries (admin/staff)
+   */
+  getAllBaggage: async (req, res, next) => {
+    try {
+      const baggage = await baggageService.getAllBaggage();
+      const response = ApiResponse.success(
+        200,
+        baggage,
+        'Retrieved all baggage entries successfully'
+      );
+      res.status(response.statusCode).json(response.body);
+    } catch (error) {
+      if (error.status) {
+        next(error);
+      } else {
+        console.error('Get all baggage error:', error);
+        next({ status: 500, message: 'Failed to retrieve baggage list', code: 'SERVER_ERROR' });
+      }
+    }
   }
 };
 

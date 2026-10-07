@@ -23,7 +23,7 @@ const paymentController = {
       }
 
       // Validate payment method
-      const validMethods = ['Credit Card', 'Debit Card', 'PayPal', 'Stripe'];
+      const validMethods = ['Credit Card', 'Debit Card', 'UPI', 'Net Banking'];
       if (!validMethods.includes(paymentMethod)) {
         const response = ApiResponse.validationError(
           `Invalid paymentMethod. Must be one of: ${validMethods.join(', ')}`

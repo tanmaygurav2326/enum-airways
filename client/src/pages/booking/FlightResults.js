@@ -192,11 +192,19 @@ const FlightResults = () => {
       const allList = extractList(allRes);
 
       // Filter by route (from -> to) and departure date >= today
+      const searchFrom = (from || '').toUpperCase();
+      const searchTo = (to || '').toUpperCase();
+
       const routeMatches = allList.filter((f) => {
-        const matchesRoute =
-          (f.DEPARTUREAIRPORT === from || f.DEPARTURECITY === from) &&
-          (f.ARRIVALAIRPORT === to || f.ARRIVALCITY === to);
-        if (!matchesRoute) return false;
+        const depCode = (f.DEPARTUREAIRPORT || f.DepartureAirport || '').toUpperCase();
+        const depCity = (f.DEPARTURECITY || f.DepartureCity || '').toUpperCase();
+        const arrCode = (f.ARRIVALAIRPORT || f.ArrivalAirport || '').toUpperCase();
+        const arrCity = (f.ARRIVALCITY || f.ArrivalCity || '').toUpperCase();
+
+        const matchesDep = depCode === searchFrom || depCity === searchFrom;
+        const matchesArr = arrCode === searchTo || arrCity === searchTo;
+
+        if (!matchesDep || !matchesArr) return false;
 
         if (f.DEPARTURETIME) {
           const flightDateStr = String(f.DEPARTURETIME).split('T')[0].split(' ')[0];
@@ -205,9 +213,15 @@ const FlightResults = () => {
         return true;
       });
 
-      setFlights(routeMatches);
-      setIsShowingRouteFallback(true);
-      setNoFlightOnDate(false);
+      if (routeMatches.length === 0) {
+        setFlights([]);
+        setIsShowingRouteFallback(false);
+        setNoFlightOnDate(true);
+      } else {
+        setFlights(routeMatches);
+        setIsShowingRouteFallback(true);
+        setNoFlightOnDate(false);
+      }
     } catch (err) {
       setError('Failed to retrieve route flights.');
     } finally {

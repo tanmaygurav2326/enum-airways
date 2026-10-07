@@ -148,7 +148,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} Enum Airways. All rights reserved.</p>
-          <div className="flex space-x-6 text-xs text-slate-400">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2 text-xs text-slate-400">
             <Link to="/privacy" className="hover:text-white transition">Privacy Policy</Link>
             <Link to="/terms-and-conditions" className="hover:text-white transition">Terms & Conditions</Link>
             <Link to="/baggage-rules" className="hover:text-white transition">Baggage Rules</Link>

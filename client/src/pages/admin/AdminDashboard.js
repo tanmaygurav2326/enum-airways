@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -14,14 +15,27 @@ import {
   Layers,
   RefreshCw,
   Shield,
-  UserCheck
+  UserCheck,
+  AlertCircle
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [accessError, setAccessError] = useState(null);
   const { formatPrice } = useCurrency();
+
+  const handleAdminOnlyNavigation = (targetPath, featureName) => {
+    if (user?.role !== 'Admin') {
+      setAccessError(`Access Denied: Only System Administrators can access ${featureName}.`);
+    } else {
+      setAccessError(null);
+      navigate(targetPath);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     setLoading(true);
@@ -90,20 +104,20 @@ const AdminDashboard = () => {
               <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
               <span>Refresh</span>
             </button>
-            <Link
-              to="/admin/staff"
-              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#0052CC] shadow-xs transition"
+            <button
+              onClick={() => handleAdminOnlyNavigation('/admin/staff', 'Staff Registry')}
+              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-[#0052CC] shadow-xs transition cursor-pointer"
             >
               <Shield className="w-3.5 h-3.5 text-[#0052CC]" />
               <span>Staff Registry</span>
-            </Link>
-            <Link
-              to="/admin/crew"
-              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-purple-700 shadow-xs transition"
+            </button>
+            <button
+              onClick={() => handleAdminOnlyNavigation('/admin/crew', 'Crew Assignment')}
+              className="flex items-center space-x-1.5 bg-white hover:bg-slate-50 border border-slate-300 px-3.5 py-2.5 rounded-xl text-xs font-bold text-purple-700 shadow-xs transition cursor-pointer"
             >
               <UserCheck className="w-3.5 h-3.5 text-purple-600" />
               <span>Crew Assignment</span>
-            </Link>
+            </button>
             <Link
               to="/admin/flights"
               className="flex items-center space-x-1.5 bg-[#0052CC] hover:bg-[#003A8C] px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm transition"
@@ -113,6 +127,21 @@ const AdminDashboard = () => {
             </Link>
           </div>
         </div>
+
+        {accessError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center justify-between space-x-2 text-xs animate-fade-in-up">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{accessError}</span>
+            </div>
+            <button
+              onClick={() => setAccessError(null)}
+              className="text-xs font-bold text-red-600 hover:text-red-900 underline cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* 4 KPI Top Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -242,7 +271,147 @@ const AdminDashboard = () => {
 
         </div>
 
+        {/* Baggage Operations & Status Manager Card */}
+        <AdminBaggageControl />
+
       </div>
+    </div>
+  );
+};
+
+// Subcomponent: Admin Baggage Status Control
+const AdminBaggageControl = () => {
+  const [baggageList, setBaggageList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [msg, setMsg] = useState(null);
+
+  const fetchBaggage = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/baggage');
+      if (res?.data) {
+        setBaggageList(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to load baggage:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBaggage();
+  }, []);
+
+  const handleStatusChange = async (baggageId, newStatus) => {
+    setUpdatingId(baggageId);
+    setMsg(null);
+    try {
+      await api.patch(`/baggage/${baggageId}/status`, { status: newStatus });
+      setMsg(`Updated baggage #${baggageId} status to "${newStatus}"`);
+      await fetchBaggage();
+    } catch (err) {
+      setMsg(`Failed to update status: ${err.message}`);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const statusColors = {
+    'Checked-In': 'bg-blue-50 text-blue-700 border-blue-200',
+    'In-Transit': 'bg-amber-50 text-amber-800 border-amber-200',
+    'On-Plane': 'bg-[#DEEBFF] text-[#0052CC] border-[#0052CC]',
+    'Ready-for-Pickup': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    'Lost': 'bg-red-50 text-red-700 border-red-200'
+  };
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-4 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+        <div>
+          <span className="text-xs uppercase font-extrabold text-[#0052CC] tracking-wider block">
+            Software Control Center
+          </span>
+          <h3 className="font-extrabold text-[#091E42] text-xl mt-0.5">
+            Passenger Baggage Operations & Tracking Manager
+          </h3>
+        </div>
+        <button
+          onClick={fetchBaggage}
+          className="bg-[#F4F5F7] hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl transition self-start sm:self-auto cursor-pointer"
+        >
+          Refresh Baggage List
+        </button>
+      </div>
+
+      {msg && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold p-3 rounded-xl">
+          {msg}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-6 text-xs text-slate-500">Loading registered baggage items...</div>
+      ) : baggageList.length === 0 ? (
+        <div className="text-center py-8 text-xs text-slate-500 bg-[#F8F9FA] rounded-2xl border border-dashed border-slate-200">
+          No registered luggage entries found in the database.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px] bg-[#F8F9FA]">
+                <th className="py-3 px-4">Tracking Number</th>
+                <th className="py-3 px-4">Passenger & Seat</th>
+                <th className="py-3 px-4">Flight & Route</th>
+                <th className="py-3 px-4">Weight</th>
+                <th className="py-3 px-4">Current Status</th>
+                <th className="py-3 px-4 text-right">Update Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              {baggageList.map((bag) => (
+                <tr key={bag.baggageId} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3.5 px-4 font-mono font-bold text-[#0052CC]">
+                    {bag.trackingNumber || `BAG-EA-${bag.baggageId}`}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="font-bold text-[#091E42] block">{bag.passengerName}</span>
+                    <span className="text-[11px] text-slate-500">Seat {bag.seatNumber}</span>
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className="font-bold text-[#091E42] block">{bag.flightNumber}</span>
+                    <span className="text-[11px] text-slate-500">{bag.departureAirport} → {bag.arrivalAirport}</span>
+                  </td>
+                  <td className="py-3.5 px-4 font-bold text-slate-700">
+                    {bag.weightKg} kg
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusColors[bag.status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                      {bag.status}
+                    </span>
+                  </td>
+                  <td className="py-3.5 px-4 text-right">
+                    <select
+                      disabled={updatingId === bag.baggageId}
+                      value={bag.status}
+                      onChange={(e) => handleStatusChange(bag.baggageId, e.target.value)}
+                      className="bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-[#091E42] focus:ring-2 focus:ring-[#0052CC] focus:outline-none cursor-pointer"
+                    >
+                      <option value="Checked-In">Checked-In</option>
+                      <option value="In-Transit">In-Transit</option>
+                      <option value="On-Plane">On-Plane</option>
+                      <option value="Ready-for-Pickup">Ready-for-Pickup</option>
+                      <option value="Lost">Lost</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
