@@ -26,7 +26,7 @@ const currencyRoutes = require('./routes/currency.routes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const REACT_URL = process.env.REACT_APP_URL || 'https://tanmaygurav2326.github.io/enum-airways';
+const REACT_URL = process.env.REACT_APP_URL || 'http://localhsot:3000';
 
 // ============================================
 // MIDDLEWARE
