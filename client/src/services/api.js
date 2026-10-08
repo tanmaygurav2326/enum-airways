@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://country-sitemap-yourself-extract.trycloudflare.com/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://asus-jonathan-observer-tackle.trycloudflare.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

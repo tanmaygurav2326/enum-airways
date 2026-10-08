@@ -35,6 +35,7 @@ const REACT_URL = process.env.REACT_APP_URL || 'http://localhost:3000';
 const allowedOrigins = [
   REACT_URL,
   'https://tanmaygurav2326.github.io',
+  'https://asus-jonathan-observer-tackle.trycloudflare.com',
   'https://country-sitemap-yourself-extract.trycloudflare.com',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
